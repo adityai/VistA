@@ -146,7 +146,7 @@ elif [[ -n "$USERNAME" ]]; then
     primaryuser=$USERNAME
 else
     echo Cannot find a suitable username to add to VistA group
-    exit 1
+    primaryuser=root
 fi
 
 echo This script will add $primaryuser to the VistA group
