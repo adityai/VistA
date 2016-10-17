@@ -31,8 +31,7 @@ usage()
     cat << EOF
     usage: $0 options
 
-    This script will automatically create a VistA instance for GT.M on
-    RHEL-like Distros
+    This script will automatically create a VistA instance for GT.M on Ubuntu
 
     DEFAULTS:
       Alternate VistA-M repo = https://github.com/OSEHRA/VistA-M.git
@@ -45,10 +44,8 @@ usage()
     OPTIONS:
       -h    Show this message
       -a    Alternate VistA-M repo (Must be in OSEHRA format)
-      -c    Path to Caché installer
       -e    Install EWD.js (assumes development directories)
-      -g    Use GT.M
-      -d    Create development directories (s & p) (GT.M only)
+      -d    Create development directories (s & p)
       -i    Instance name
       -p    Post install hook (path to script)
       -s    Skip testing
@@ -56,7 +53,7 @@ usage()
 EOF
 }
 
-while getopts ":ha:c:edgi:p:s" option
+while getopts ":ha:edi:p:s" option
 do
     case $option in
         h)
@@ -66,18 +63,12 @@ do
         a)
             repoPath=$OPTARG
             ;;
-        c)
-            cacheinstallerpath=$OPTARG
-            ;;
         d)
             developmentDirectories=true
             ;;
         e)
             installEWD=true
             developmentDirectories=true
-            ;;
-        g)
-            installgtm=true
             ;;
         i)
             instance=$(echo $OPTARG |tr '[:upper:]' '[:lower:]')
@@ -105,10 +96,6 @@ if [[ -z $installEWD ]]; then
     installEWD=false
 fi
 
-if [[ -z $installgtm ]]; then
-    installgtm=false
-fi
-
 if [[ -z $instance ]]; then
     instance=osehra
 fi
@@ -119,16 +106,6 @@ fi
 
 if [ -z $skipTests ]; then
     skipTests=false
-fi
-
-if [ -z $cacheinstallerpath ]; then
-    cacheinstallerpath=false;
-fi
-
-# Quit if no M environment viable
-if [[ ! $installgtm || ! $cacheinstallerpath ]]; then
-    echo "You need to either provide a path to the Caché installer or install GT.M!"
-    exit 1
 fi
 
 # Summarize options
@@ -155,26 +132,15 @@ echo This script will add $primaryuser to the VistA group
 test -d /home/$instance/g &&
 { echo "VistA already Installed. Aborting."; exit 0; }
 
-# Install the epel repo (needed for cmake28)
-cat > /etc/yum.repos.d/epel.repo << EOF
-[epel]
-name=epel
-baseurl=http://download.fedoraproject.org/pub/epel/6/\$basearch
-enabled=1
-gpgcheck=0
-EOF
+# control interactivity of debian tools
+export DEBIAN_FRONTEND="noninteractive"
 
 # extra utils - used for cmake and dashboards and initial clones
+# Note: Amazon EC2 requires two apt-get update commands to get everything
 echo "Updating operating system"
-yum update -y > /dev/null
-yum install -y cmake28 git dos2unix > /dev/null
-yum install -y http://libslack.org/daemon/download/daemon-0.6.4-1.i686.rpm > /dev/null
-
-# Fix cmake28 links
-ln -s /usr/bin/cmake28 /usr/bin/cmake
-ln -s /usr/bin/ctest28 /usr/bin/ctest
-ln -s /usr/bin/ccmake28 /usr/bin/ccmake
-ln -s /usr/bin/cpack28 /usr/bin/cpack
+apt-get update -qq > /dev/null
+apt-get update -qq > /dev/null
+apt-get install -qq -y build-essential cmake-curses-gui git dos2unix daemon > /dev/null
 
 # Clone repos
 cd /usr/local/src
@@ -199,23 +165,17 @@ fi
 
 # bootstrap the system
 cd $scriptdir
-./RHEL/bootstrapRHELserver.sh
+./Ubuntu/bootstrapUbuntuServer.sh
 
 # Ensure scripts know if we are RHEL like or Ubuntu like
-export RHEL=true;
+export ubuntu=true;
 
-# Install GT.M if requested
-if $installgtm; then
-    cd GTM
-    ./install.sh
-    # Create the VistA instance
-    ./createVistaInstance.sh -i $instance
-fi
+# Install GTM
+cd GTM
+./install.sh -v V6.2-000
 
-# Install Caché if requested
-if $cacheinstallerpath; then
-    echo "Cache installer path:" $cacheinstallerpath
-fi
+# Create the VistA instance
+./createVistaInstance.sh -i $instance
 
 # Modify the primary user to be able to use the VistA instance
 usermod -a -G $instance $primaryuser
@@ -253,7 +213,7 @@ else
     export buildid=`tr -dc "[:alpha:]" < /dev/urandom | head -c 8`
 
     # Import VistA and run tests using OSEHRA automated testing framework
-    su $instance -c "source $basedir/etc/env && ctest -S $scriptdir/RHEL/test.cmake -V"
+    su $instance -c "source $basedir/etc/env && ctest -S $scriptdir/Ubuntu/test.cmake -V"
     # Tell users of their build id
     echo "Your build id is: $buildid you will need this to identify your build on the VistA dashboard"
 fi
@@ -267,13 +227,19 @@ service xinetd restart
 # Add p and s directories to gtmroutines environment variable
 if $developmentDirectories; then
     su $instance -c "mkdir $basedir/{p,p/$gtmver,s,s/$gtmver}"
-    perl -pi -e 's#export gtmroutines=\"#export gtmroutines=\"\$basedir/p/\$gtmver\(\$basedir/p\) \$basedir/s/\$gtmver\(\$basedir/s\) #' $basedir/etc/env
+    if [[ $gtmver == *"6.2"* ]]; then
+        echo "Adding Development directories for GT.M 6.2"
+        perl -pi -e 's#export gtmroutines=\"#export gtmroutines=\"\$basedir/p/\$gtmver\*(\$basedir/p\) \$basedir/s/\$gtmver\*(\$basedir/s\) #' $basedir/etc/env
+    else
+        echo "Adding Development directories for GT.M <6.2"
+        perl -pi -e 's#export gtmroutines=\"#export gtmroutines=\"\$basedir/p/\$gtmver\(\$basedir/p\) \$basedir/s/\$gtmver\(\$basedir/s\) #' $basedir/etc/env
+    fi
 fi
 
 # Install EWD.js
 if $installEWD; then
     cd $scriptdir/EWD
-    ./ewdjs.sh
+    ./ewdjs.sh -v 0.12
     cd $basedir
 fi
 

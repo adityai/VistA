@@ -2,7 +2,7 @@
 set(CTEST_SITE "$ENV{buildid}.vagrant")
 
 # Hardset buildname with {OS}-{Mversion}_{arch} convention
-set(CTEST_BUILD_NAME "CentOS6.4-GTM$ENV{gtmver}")
+set(CTEST_BUILD_NAME "Ubuntu12.04-GTM$ENV{gtmver}")
 
 # Set build type to experimental by default
 set(dashboard_model "Experimental")
@@ -55,7 +55,7 @@ TEST_VISTA_FUNCTIONAL_SIK:BOOL=OFF
 #Run Automated Unit Testing
 TEST_VISTA_MUNIT:BOOL=OFF
 #Prepopulate the database with sample data including users, patients,
-# locations, etc.
+# locations, etc. 
 TEST_VISTA_SETUP:BOOL=ON
 #Install MUNIT KIDS BUILD
 TEST_VISTA_SETUP_MUNIT:BOOL=OFF
@@ -66,7 +66,7 @@ TEST_VISTA_SETUP_MUNIT_PATCH_NAME:STRING=XT*7.3*81
 #Absolute path to the system temp directory.  The default of '@'
 # will cause the system to use the working directory of the process
 # as the temp directory.  This path has a limit of 50 characters.
-#  Avoid Windows paths with a '~'
+#  Avoid Windows paths with a '~' 
 TEST_VISTA_SETUP_PRIMARY_HFS_DIRECTORY:PATH=@
 #Name to set for the site address when initializing VistA instance.
 #  Default is 'DEMO.OSEHRA.ORG'
