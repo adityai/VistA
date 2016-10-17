@@ -5,8 +5,8 @@ dependencies:
    
   post:
    - sudo docker build -t=osehra-vista . 
-   - sudo docker run --name osehra-vista -v /home/ubuntu:/usr/src/mycode -d osehra-vista
-   - sudo docker save -o $CIRCLE_ARTIFACTS/osehra-vista.tar osehra-vista
+   - sudo docker run --name osehra-vista -p 9430:9430 -p 8101:8001 -p 8180:8080 -p 8100:8000 -p 8181:8081 -v /home/ubuntu:/usr/src/mycode -d osehra-vista
+   - curl http://localhost:8101
 
 deployment:
   dockerhub:
@@ -16,5 +16,5 @@ deployment:
       
 test:
   override:
-  - docker images | grep osehra-vista 
+  - docker images | grep osehra-vista
 
